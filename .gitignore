@@ -10,3 +10,4 @@ nepali_dresses_augmented.zip
 
 # Notebook checkpoints
 .ipynb_checkpoints/
+features_resnet_gru.pkl
