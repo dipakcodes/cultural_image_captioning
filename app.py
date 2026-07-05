@@ -280,7 +280,7 @@ with st.spinner(f"Loading {model_choice}..."):
     try:
         encoder, decoder, vocab, eval_tf, config, device = load_fn(model_path)
         nn_model, classes_list, nepali_list = load_features(features_path)
-        st.success(f"Device: {device} | Vocab: {len(vocab)}")
+
     except Exception as e:
         st.error(f"Failed to load: {e}")
         st.stop()
