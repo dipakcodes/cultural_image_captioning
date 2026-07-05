@@ -2,6 +2,11 @@ __pycache__/
 .DS_Store
 .claude/
 
+# Model checkpoints & features
+1_out
+2_out
+features_*.pkl
+
 # Datasets
 nepali_dresses_augmented
 nepali_dresses_augmented.zip
