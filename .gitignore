@@ -10,11 +10,8 @@ features_*.pkl
 # Datasets
 nepali_dresses_augmented
 nepali_dresses_augmented.zip
-nepali_dresses_dataset.zip
 
-# Checkpoints
-captions.csv.ckpt.jsonl
-captions.csv
+
 
 # Notebook checkpoints
 .ipynb_checkpoints/
