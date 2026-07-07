@@ -304,6 +304,19 @@ def retrieve_rag(query, embedder, chunks, chunk_dress, chunk_cat, embeddings, dr
             results.append((chunks[i], chunk_dress[i], chunk_cat[i], scores[i].item()))
     return results
 
+def detect_category(query):
+    q = query.lower()
+    for key, keywords in {
+        "history": ["history", "origin", "start", "begin", "come from", "historical", "traditionally", "evolve"],
+        "community": ["who wears", "community", "people", "ethnic", "group", "demographic"],
+        "occasions": ["festival", "occasion", "wear", "when", "celebration", "event", "ceremony"],
+        "visual": ["look", "appearance", "design", "color", "pattern", "style", "fabric", "visual"],
+        "significance": ["significance", "meaning", "symbolize", "represent", "important", "value"]
+    }.items():
+        if any(kw in q for kw in keywords):
+            return key
+    return None
+
 CATEGORY_LABELS = {
     "history": ("History", "📜"),
     "community": ("Community", "👥"),
@@ -632,11 +645,19 @@ if uploaded_file is not None:
                         retrieved.append((KNOWLEDGE_BASE[dress_key][c], dress_key, c, 0.5))
 
                 # Build response
+                wanted_cat = topic_keys_map.get(topic)
                 response_parts = []
                 seen_cats = set()
                 for chunk, src, cat, score in retrieved:
+                    if wanted_cat != "all" and cat != wanted_cat:
+                        continue
                     seen_cats.add(cat)
                     label, emoji = CATEGORY_LABELS.get(cat, (cat.capitalize(), "📌"))
+                    response_parts.append(f"{emoji} **{label}:**\n{chunk}")
+
+                if not response_parts and wanted_cat and wanted_cat != "all":
+                    chunk = KNOWLEDGE_BASE[dress_key][wanted_cat]
+                    label, emoji = CATEGORY_LABELS.get(wanted_cat, (wanted_cat.capitalize(), "📌"))
                     response_parts.append(f"{emoji} **{label}:**\n{chunk}")
 
                 response = (
@@ -705,11 +726,19 @@ if uploaded_file is not None:
                         for c in cat_idx[:3]:
                             retrieved.append((KNOWLEDGE_BASE[dress_key][c], dress_key, c, 0.5))
 
+                    wanted_cat = detect_category(query)
                     response_parts = []
                     seen_cats = set()
                     for chunk, src, cat, score in retrieved:
+                        if wanted_cat and cat != wanted_cat:
+                            continue
                         seen_cats.add(cat)
                         label, emoji = CATEGORY_LABELS.get(cat, (cat.capitalize(), "📌"))
+                        response_parts.append(f"{emoji} **{label}:**\n{chunk}")
+
+                    if not response_parts and wanted_cat:
+                        chunk = KNOWLEDGE_BASE[dress_key][wanted_cat]
+                        label, emoji = CATEGORY_LABELS.get(wanted_cat, (wanted_cat.capitalize(), "📌"))
                         response_parts.append(f"{emoji} **{label}:**\n{chunk}")
 
                     response = (
@@ -718,7 +747,7 @@ if uploaded_file is not None:
                         + random.choice(QUIPS["celebrate"])
                     )
 
-                    ctx = {"question": query, "categories": list(seen_cats)[:3], "dress": dress_key}
+                    ctx = {"question": query, "categories": list(seen_cats) if wanted_cat else ["all"], "dress": dress_key}
 
                     st.markdown(response)
                     st.session_state.context_history.append(ctx)
