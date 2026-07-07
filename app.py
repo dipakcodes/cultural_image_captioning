@@ -128,7 +128,7 @@ BASE_DIR = os.path.dirname(__file__)
 @st.cache_resource
 def load_resnet_gru(model_path):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    ck = torch.load(model_path, map_location=device)
+    ck = torch.load(model_path, map_location=device, weights_only=False)
     config = ck["config"]
     vocab = Vocab(ck["vocab_itos"])
     encoder = ResNetEncoder(config["ENC_IMAGE_SIZE"]).to(device)
@@ -147,7 +147,7 @@ def load_resnet_gru(model_path):
 @st.cache_resource
 def load_tinyvit(model_path):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    ck = torch.load(model_path, map_location=device)
+    ck = torch.load(model_path, map_location=device, weights_only=False)
     config = ck["config"]
     vocab = Vocab(ck["vocab_itos"])
     encoder = TinyViTEncoder(
