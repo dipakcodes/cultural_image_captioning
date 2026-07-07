@@ -176,6 +176,39 @@ def load_features(features_path):
     nn_model.fit(feat)
     return nn_model, data["classes"], data["nepali_captions"]
 
+def auto_generate_features(model_key, encoder, eval_tf, device):
+    """Generate missing features file if dataset is available."""
+    fpath = os.path.join(BASE_DIR, f"features_{model_key}.pkl")
+    if os.path.exists(fpath):
+        return True
+    dataset_path = os.path.join(BASE_DIR, "nepali_dresses_augmented")
+    csv_path = os.path.join(BASE_DIR, "captions.csv")
+    if not os.path.isdir(dataset_path) or not os.path.exists(csv_path):
+        return False
+    import pandas as pd
+    from tqdm import tqdm
+    df = pd.read_csv(csv_path)
+    encoder.eval()
+    features, classes, caps = [], [], []
+    paths = df["image_path"].tolist()
+    st.info(f"Precomputing {model_key} features ({len(paths)} images)...")
+    for p in tqdm(paths, desc=f"Extracting {model_key}"):
+        full = os.path.join(BASE_DIR, p)
+        if not os.path.exists(full):
+            continue
+        img = Image.open(full).convert("RGB")
+        img_t = eval_tf(img).unsqueeze(0).to(device)
+        with torch.no_grad():
+            feat = encoder(img_t).cpu().numpy().flatten()
+        features.append(feat)
+        classes.append(p.split("/")[-2])
+        row = df[df["image_path"] == p].iloc[0]
+        caps.append(row["caption_ne"])
+    out = {"features": features, "classes": classes, "nepali_captions": caps}
+    with open(fpath, "wb") as f:
+        pickle.dump(out, f)
+    return True
+
 def predict_class(encoder, image, eval_tf, device, nn_model):
     img = eval_tf(image).unsqueeze(0).to(device)
     with torch.no_grad():
@@ -515,10 +548,18 @@ CLASS_LABELS = {
     "tharu_dress": "Tharu Dress",
 }
 
-model_choice = st.selectbox("Select Model", [
-    "ResNet-50 + GRU",
-    "Tiny ViT + Transformer"
-])
+available_models = []
+resnet_available = os.path.exists(os.path.join(BASE_DIR, "features_resnet_gru.pkl"))
+tinyvit_available = os.path.exists(os.path.join(BASE_DIR, "features_tinyvit.pkl"))
+if resnet_available:
+    available_models.append("ResNet-50 + GRU")
+if tinyvit_available:
+    available_models.append("Tiny ViT + Transformer")
+if not available_models:
+    st.error("No model features found. Please select a different model.")
+    st.stop()
+
+model_choice = st.selectbox("Select Model", available_models)
 
 model_key = "resnet_gru" if "ResNet" in model_choice else "tinyvit"
 model_path = os.path.join(BASE_DIR, "1_out" if "ResNet" in model_choice else "2_out")
@@ -528,6 +569,12 @@ load_fn = load_resnet_gru if "ResNet" in model_choice else load_tinyvit
 with st.spinner(f"Loading {model_choice}..."):
     try:
         encoder, decoder, vocab, eval_tf, config, device = load_fn(model_path)
+        if not os.path.exists(features_path):
+            if auto_generate_features(model_key, encoder, eval_tf, device):
+                st.rerun()
+            else:
+                st.error(f"Features file for {model_choice} is missing. Generate by placing 'nepali_dresses_augmented/' folder and running: python precompute_features.py")
+                st.stop()
         nn_model, classes_list, nepali_list = load_features(features_path)
         st.success(f"Device: {device} | Vocab: {len(vocab)}")
     except Exception as e:
