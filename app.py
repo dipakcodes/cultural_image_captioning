@@ -533,15 +533,7 @@ if uploaded_file is not None:
     st.subheader("Predicted Dress Class")
     st.success(f"**{display_class}**")
 
-    with st.spinner("Generating caption..."):
-        caption_fn = caption_resnet_gru if "ResNet" in model_choice else caption_tinyvit
-        model_key = "resnet_gru" if "ResNet" in model_choice else "tinyvit"
-        base = caption_fn(image, encoder, decoder, vocab, eval_tf, config, device)
-        expanded = expand_caption(base, predicted_class, model_key)
-
-    label = "✨ Creative Description" if model_key == "resnet_gru" else "📜 History & Origin"
-    st.subheader("English Caption")
-    st.success(expanded)
+    model_key = "resnet_gru" if "ResNet" in model_choice else "tinyvit"
 
     st.subheader("Nepali Caption")
     ne_expanded = expand_caption(nepali_list[idx], predicted_class, model_key, lang="ne")
