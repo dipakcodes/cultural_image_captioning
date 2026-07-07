@@ -1,3 +1,13 @@
+---
+title: Nepali Cultural Dress Explorer
+emoji: 🏔️
+colorFrom: indigo
+colorTo: green
+sdk: streamlit
+app_file: app.py
+pinned: false
+---
+
 # Nepali Cultural Dress Captioning
 
 An image captioning system that identifies traditional Nepali cultural dresses from uploaded images and generates descriptive captions in Nepali. Built with two deep learning architectures — **ResNet-50 + GRU with Bahdanau Attention** and **Tiny ViT + Transformer Decoder**.

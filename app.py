@@ -9,9 +9,6 @@ import numpy as np
 import os, re, pickle, random
 from sklearn.neighbors import NearestNeighbors
 import threading
-from huggingface_hub import hf_hub_download
-HF_MODEL_REPO = "dkodee/cultural-dress-models"
-
 PAD, START, END, UNK = "<pad>", "<start>", "<end>", "<unk>"
 
 def tokenize(text):
@@ -168,13 +165,6 @@ def load_tinyvit(model_path):
         T.Normalize(config["NORM_MEAN"], config["NORM_STD"])
     ])
     return encoder, decoder, vocab, eval_tf, config, device
-
-@st.cache_resource
-def ensure_downloaded(path, repo_filename):
-    if not os.path.exists(path):
-        with st.spinner(f"Downloading {repo_filename}..."):
-            hf_hub_download(HF_MODEL_REPO, repo_filename, local_dir=BASE_DIR, local_dir_use_symlinks=False)
-    return path
 
 @st.cache_resource
 def load_features(features_path):
@@ -570,14 +560,11 @@ load_fn = load_resnet_gru if "ResNet" in model_choice else load_tinyvit
 with st.spinner(f"Loading {model_choice}..."):
     try:
         encoder, decoder, vocab, eval_tf, config, device = load_fn(model_path)
+        if not os.path.exists(features_path) and auto_generate_features(model_key, encoder, eval_tf, device):
+            st.rerun()
         if not os.path.exists(features_path):
-            if model_key == "resnet_gru":
-                ensure_downloaded(features_path, "features_resnet_gru.pkl")
-            if not os.path.exists(features_path) and auto_generate_features(model_key, encoder, eval_tf, device):
-                st.rerun()
-            if not os.path.exists(features_path):
-                st.error(f"Features file for {model_choice} is missing. Run: python precompute_features.py")
-                st.stop()
+            st.error(f"Features file for {model_choice} is missing. Make sure features_{model_key}.pkl is in the project directory, or run: python precompute_features.py")
+            st.stop()
         nn_model, classes_list, nepali_list = load_features(features_path)
         st.success(f"Device: {device} | Vocab: {len(vocab)}")
     except Exception as e:
@@ -624,9 +611,8 @@ if uploaded_file is not None:
 
         # Init RAG engine
         if "rag_initialized" not in st.session_state:
-            with st.spinner("Loading RAG knowledge engine..."):
-                embedder = init_rag_engine()
-                chunks, chunk_dress, chunk_cat, embeddings = build_rag_index(KNOWLEDGE_BASE, embedder)
+            embedder = init_rag_engine()
+            chunks, chunk_dress, chunk_cat, embeddings = build_rag_index(KNOWLEDGE_BASE, embedder)
             st.session_state.rag_embedder = embedder
             st.session_state.rag_chunks = chunks
             st.session_state.rag_chunk_dress = chunk_dress
