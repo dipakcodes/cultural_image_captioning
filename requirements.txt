@@ -6,3 +6,4 @@ pillow
 pandas
 tqdm
 scikit-learn
+sentence-transformers
