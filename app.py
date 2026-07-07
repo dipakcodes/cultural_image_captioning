@@ -9,6 +9,8 @@ import numpy as np
 import os, re, pickle, random
 from sklearn.neighbors import NearestNeighbors
 import threading
+from huggingface_hub import hf_hub_download
+HF_MODEL_REPO = "dkodee/cultural-dress-models"
 
 PAD, START, END, UNK = "<pad>", "<start>", "<end>", "<unk>"
 
@@ -166,6 +168,13 @@ def load_tinyvit(model_path):
         T.Normalize(config["NORM_MEAN"], config["NORM_STD"])
     ])
     return encoder, decoder, vocab, eval_tf, config, device
+
+@st.cache_resource
+def ensure_downloaded(path, repo_filename):
+    if not os.path.exists(path):
+        with st.spinner(f"Downloading {repo_filename}..."):
+            hf_hub_download(HF_MODEL_REPO, repo_filename, local_dir=BASE_DIR, local_dir_use_symlinks=False)
+    return path
 
 @st.cache_resource
 def load_features(features_path):
@@ -548,18 +557,10 @@ CLASS_LABELS = {
     "tharu_dress": "Tharu Dress",
 }
 
-available_models = []
-resnet_available = os.path.exists(os.path.join(BASE_DIR, "features_resnet_gru.pkl"))
-tinyvit_available = os.path.exists(os.path.join(BASE_DIR, "features_tinyvit.pkl"))
-if resnet_available:
-    available_models.append("ResNet-50 + GRU")
-if tinyvit_available:
-    available_models.append("Tiny ViT + Transformer")
-if not available_models:
-    st.error("No model features found. Please select a different model.")
-    st.stop()
-
-model_choice = st.selectbox("Select Model", available_models)
+model_choice = st.selectbox("Select Model", [
+    "ResNet-50 + GRU",
+    "Tiny ViT + Transformer"
+])
 
 model_key = "resnet_gru" if "ResNet" in model_choice else "tinyvit"
 model_path = os.path.join(BASE_DIR, "1_out" if "ResNet" in model_choice else "2_out")
@@ -570,10 +571,12 @@ with st.spinner(f"Loading {model_choice}..."):
     try:
         encoder, decoder, vocab, eval_tf, config, device = load_fn(model_path)
         if not os.path.exists(features_path):
-            if auto_generate_features(model_key, encoder, eval_tf, device):
+            if model_key == "resnet_gru":
+                ensure_downloaded(features_path, "features_resnet_gru.pkl")
+            if not os.path.exists(features_path) and auto_generate_features(model_key, encoder, eval_tf, device):
                 st.rerun()
-            else:
-                st.error(f"Features file for {model_choice} is missing. Generate by placing 'nepali_dresses_augmented/' folder and running: python precompute_features.py")
+            if not os.path.exists(features_path):
+                st.error(f"Features file for {model_choice} is missing. Run: python precompute_features.py")
                 st.stop()
         nn_model, classes_list, nepali_list = load_features(features_path)
         st.success(f"Device: {device} | Vocab: {len(vocab)}")

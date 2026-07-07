@@ -5,9 +5,9 @@ __pycache__/
 # Datasets
 nepali_dresses_augmented
 nepali_dresses_augmented.zip
+features_resnet_gru.pkl
 
 
 
 # Notebook checkpoints
 .ipynb_checkpoints/
-features_resnet_gru.pkl
